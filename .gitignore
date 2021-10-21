@@ -245,3 +245,4 @@ cython_debug/
 # Cython debug symbols
 
 # End of https://www.toptal.com/developers/gitignore/api/python,django,angular
+lumi-bot/lumi_backend/static/*
