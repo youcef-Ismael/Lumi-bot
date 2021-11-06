@@ -26,6 +26,13 @@ class Controller:
             self.client.API_URL = 'https://testnet.binance.vision/api'
         self.trade_type = trade_type
         self.order_type = order_type
-        self.model = model.Model(trade_type, order_type, 'BTCUSDT', 0.001)
+        self.model = model.Model(self.client, trade_type, order_type, 'BTCUSDT', 0.001)
 
     # TODO implement methods communicating with the frontend (Django) and, in turn, with the model
+
+controller = Controller(TradeType.SPOT, OrderType.MARKET, paper=True)
+print(controller.client.get_asset_balance('USDT'))
+# order = controller.client.create_order(symbol='BTCUSDT', side='BUY', type='MARKET', quantity=0.1)
+# print(controller.client.get_asset_balance('BTC'))
+
+# print(controller.client.futures_account_transfer(asset='BTC', amount=0.0008, type=3, timestamp=ctime()))
