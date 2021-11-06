@@ -1,11 +1,9 @@
-from personal_data import *         # Stores the personal information for the Binance API
-from bot import API, TradeData, Bot
-
-api_data = API(api_key, api_private_key)
-trade_data = TradeData('MARKET', 'BTCUSDT', 0.001)
-
-bot = Bot(api_data, trade_data)
-print(bot.get_data('1m', '30'))
+from bot import TradeData, Bot
 
 
-# bot.start()
+class Model:
+    def __init__(self, client, trade_type, order_type, pair, quantity):
+        self.trade_data = TradeData(trade_type, order_type, pair, quantity)
+        self.bot = Bot(self.trade_data, client)
+
+    # TODO insert methods here that communicate with the Bot according to the trade data
