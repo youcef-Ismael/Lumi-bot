@@ -1,3 +1,5 @@
+from time import ctime
+
 import model
 import os
 from dataclasses import dataclass
@@ -16,6 +18,8 @@ class API:
 class Controller:
     """Class that communicates with the view (frontend) and trading bot model"""
 
+    # TODO implement methods communicating with the frontend (Django) and, in turn, with the model
+
     def __init__(self, trade_type: TradeType, order_type: OrderType, paper=True):
         self.api_key = os.environ.get('binance_api')
         self.api_secret = os.environ.get('binance_secret')
@@ -28,11 +32,15 @@ class Controller:
         self.order_type = order_type
         self.model = model.Model(self.client, trade_type, order_type, 'BTCUSDT', 0.001)
 
-    # TODO implement methods communicating with the frontend (Django) and, in turn, with the model
+    def get_asset_balance(self, asset):
+        return self.client.get_asset_balance(asset=asset)
+
+    def create_order(self, symbol, side, order_type, quantity):  # might be redundant
+        self.client.create_order(symbol=symbol, side=side, type=order_type, quantity=quantity)
+
+    def futures_account_transfer(self, asset, amount, f_type, timestamp=ctime()):
+        self.client.futures_account_transfer(asset=asset, amount=amount, type=f_type, timestamp=timestamp)
+
 
 controller = Controller(TradeType.SPOT, OrderType.MARKET, paper=True)
-print(controller.client.get_asset_balance('USDT'))
-# order = controller.client.create_order(symbol='BTCUSDT', side='BUY', type='MARKET', quantity=0.1)
-# print(controller.client.get_asset_balance('BTC'))
-
-# print(controller.client.futures_account_transfer(asset='BTC', amount=0.0008, type=3, timestamp=ctime()))
+controller.model.bot.evaluate_sma(6)
