@@ -1,27 +1,27 @@
-import datetime
 import time
+import datetime
+import pandas as pd
+
 from dataclasses import dataclass
 from enum import Enum
-
-import pandas as pd
 
 
 class TradeType(Enum):
     SPOT = 1
     FUTURE = 2
 
-
 class OrderType(Enum):
     MARKET = 1
     LIMIT = 2
 
-
 @dataclass
 class TradeData:
     trade_type: TradeType
-    order_type: OrderType
-    pair: str  # Trading pair (e.g. BTCUSDT)
-    quantity: float
+    order_type: OrderType   # MARKET / LIMIT
+    pair: str               # Trading pair (e.g. BTCUSDT)
+    # quantity: float
+    interval: int
+    lookback: int
 
 
 class Bot:
@@ -30,34 +30,31 @@ class Bot:
     # TODO Use adequate API in respect to the trade type (future or spot) - check out:
     #  https://python-binance.readthedocs.io/en/latest/binance.html
 
-    def __init__(self, trade_data, client):
+    def __init__(self, trade_data, api):
         self.trade_data = trade_data
-        self.client = client
+        self.api = api
         self.entered = False
         self.order = None
 
-    def get_data(self, interval, lookback_min):
-        frame = pd.DataFrame(
-            self.client.get_historical_klines(self.trade_data.pair, interval, lookback_min + ' min ago UTC'))
-        frame = frame.iloc[:, :6]
-        frame.columns = ['Time', 'Open', 'High', 'Low', 'Close', 'Volume']
-        frame = frame.set_index('Time')
-        frame.index = pd.to_datetime(frame.index, unit='ms')
-        frame = frame.astype(float)
 
-        return frame
-
-    def start(self, symbol, qty):
+    async def start(self):
+        i = 0
         while True:
-            if not self.entered:
-                self.buy()
-                self.entered = True
+            # if not self.entered:
+            #     self.buy()
+            #     self.entered = True
 
-            else:
-                self.sell()
-                self.entered = False
+            # else:
+            #     self.sell()
+            #     self.entered = False
+            tmp = await self.api.get_data()
+            print(tmp)
 
             time.sleep(5)  # 5 sec delay
+            if i == 5:
+                break
+        
+            i += 1
 
     def buy(self):
         """Function implementing the buy strategy"""
