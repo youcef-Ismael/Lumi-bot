@@ -1,12 +1,11 @@
 import time
 import datetime
 import pandas as pd
+import btalib
+import asyncio
 
 from dataclasses import dataclass
 from enum import Enum
-
-import pandas as pd
-import btalib
 
 
 class TradeType(Enum):
@@ -20,7 +19,7 @@ class OrderType(Enum):
 @dataclass
 class TradeData:
     trade_type: TradeType
-    order_type: OrderType
+    # order_type: OrderType
     pair: tuple
     pair_str: str  # Trading pair (e.g. BTCUSDT)
     quantity: float
@@ -32,12 +31,14 @@ class Bot:
     # TODO Use adequate API in respect to the trade type (future or spot) - check out:
     #  https://python-binance.readthedocs.io/en/latest/binance.html
 
-    def __init__(self, trade_data, api):
-        self.trade_data = trade_data
+    def __init__(self, api):
         self.api = api
         self.entered = False
         self.order = None
 
+    def set_trade_data(self, trade_data):
+        self.trade_data = trade_data
+        self.api.set_pair(trade_data.pair_str)
 
     async def start(self):
         i = 0
@@ -52,7 +53,7 @@ class Bot:
             tmp = await self.api.get_data()
             print(tmp)
 
-            time.sleep(5)  # 5 sec delay
+            await asyncio.sleep(2)
             if i == 5:
                 break
         
