@@ -1,27 +1,12 @@
-# LumiFrontend
+To running this app you should have angular and npm in your computer
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 12.2.10.
+Lumi Bot APP
 
-## Development server
-
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
-
-## Code scaffolding
-
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
-
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+1. Please install npm first in your laptop
+2. Then install angular with npm machine
+3. Download the file lumi-frontend.zip from this github repo
+4. Extract that and go to lumi-frontend folder
+5. Open CMD from that folder
+6. Run npm install
+7. then run npm start
+8. Enjoy!!
