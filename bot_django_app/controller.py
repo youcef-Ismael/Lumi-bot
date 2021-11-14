@@ -1,41 +1,45 @@
+from dataclasses import dataclass
 from time import ctime
 
-import model
-import os
-from dataclasses import dataclass
-
-from binance.client import Client
-
-from bot import TradeType, TradeData, OrderType
+import pandas as pd
+from binance import BinanceSocketManager, AsyncClient
 
 
 @dataclass
-class API:
+class Keys:
     api_key: str
     api_secret: str
 
 
-def start_bot(trade_type: TradeType, pair, quantity, paper):
-    # TODO validation logic
-    controller = Controller(trade_type, pair, quantity, paper)
+class API:
+    def __init__(self, keys, paper=True):
+        self.socket = None
 
+        self.client = AsyncClient(keys.api_key, keys.api_secret)
 
-class Controller:
-    """Class that communicates with the view (frontend) and trading bot model"""
-
-    # TODO implement methods communicating with the frontend (Django) and, in turn, with the model
-
-    def __init__(self, trade_type: TradeType, pair: tuple = ('BTC', 'USDT'), quantity=0.001, paper=True):
-        self.api_key = os.environ.get('binance_api')
-        self.api_secret = os.environ.get('binance_secret')
-        self.api_data = API(self.api_key, self.api_secret)
-        self.client = Client(self.api_data.api_key, self.api_data.api_secret)
         self.paper = paper
-        if paper:
+        if self.paper:
             self.client.API_URL = 'https://testnet.binance.vision/api'
-        self.pair_str = pair[0] + pair[1]
-        self.trade_data = TradeData(trade_type, OrderType.MARKET, pair, self.pair_str, quantity)
-        self.model = model.Model(self.trade_data, self.client)
+
+        self.socket_manager = BinanceSocketManager(self.client)
+
+    def set_pair(self, pair):
+        self.socket = self.socket_manager.trade_socket(pair)
+
+    async def get_data(self):
+        await self.socket.__aenter__()
+        data = await self.socket.recv()
+
+        return self.clean_data(data)
+
+    def clean_data(self, data):
+        frame = pd.DataFrame([data])
+        frame = frame.loc[:, ['s', 'E', 'p']]
+        frame.columns = ['Pair', 'Time', 'Price']
+        frame.Price = frame.Price.astype(float)
+        frame.Time = pd.to_datetime(frame.Time, unit='ms')
+
+        return frame
 
     def get_asset_balance(self, asset):
         return self.client.get_asset_balance(asset=asset)
@@ -44,5 +48,10 @@ class Controller:
         self.client.futures_account_transfer(asset=asset, amount=amount, type=f_type, timestamp=timestamp)
 
 
-controller = Controller(TradeType.SPOT, OrderType.MARKET, paper=True)
-controller.model.bot.start()
+class Controller:
+    """Class that communicates with the view (frontend) and model (trading bot)"""
+
+    # TODO implement methods communicating with the frontend (Django) and, in turn, with the model
+
+    def __init__(self):
+        pass

@@ -1,10 +1,11 @@
+import asyncio
 import datetime
-import time
+import btalib
+import pandas as pd
+
 from dataclasses import dataclass
 from enum import Enum
 
-import pandas as pd
-import btalib
 
 
 class TradeType(Enum):
@@ -32,22 +33,44 @@ class Bot:
     # TODO Use adequate API in respect to the trade type (future or spot) - check out:
     #  https://python-binance.readthedocs.io/en/latest/binance.html
 
-    trade_id = 1  # for future trading
+    def __init__(self, api):
+        self.api = api
+        self.trade_data = None
+        self.df = pd.DataFrame()
+        self.stopped = False
+        self.loop = asyncio.get_event_loop()
 
-    def __init__(self, trade_data, client):
+    def set_trade_data(self, trade_data):
         self.trade_data = trade_data
-        self.client = client
-        self.orders = {}  # (coin pair, order)
-        self.open_trades = {}  # to keep track of futures, for this we need persistence # (transaction_time, order) pairs
+        self.api.set_pair(trade_data.pair_str)
+
+    def stop(self):
+        self.stopped = True
+        self.loop.stop()
+        self.loop.close()
 
     def start(self):
-        i = 0
-        while True:
-            self.buy()
-            time.sleep(5)  # 5 sec delay
-            if i == 5:
-                break
-            i += 1
+        try:
+            asyncio.ensure_future(self.populate_df(), loop=self.loop)
+            asyncio.ensure_future(self.start_trade(), loop=self.loop)
+            self.loop.run_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            print("Closing Loop")
+            self.stop()
+
+    async def start_trade(self):
+        #should wait 10 secs before start
+        print('here')
+
+    async def populate_df(self):
+        print('Gathering Data for provided coin pair ' + self.trade_data.pair_str)
+        while not self.stopped:
+            realtime_data = await self.api.get_data()
+            self.df = self.df.append(realtime_data)
+            print(self.df)
+            await asyncio.sleep(1)
 
     def buy(self):
         """Function implementing the buy strategy"""
@@ -140,7 +163,7 @@ class Bot:
         levels = []
         for ratio in ratios:
             if highest_swing > lowest_swing:  # Uptrend
-                levels.append(max_level - (max_level - min_level) * ratio)
+                levels.append(max_level - (max_level - min_level) * ratios)
             else:  # Downtrend
-                levels.append(min_level + (max_level - min_level) * ratio)
+                levels.append(min_level + (max_level - min_level) * ratios)
         return levels

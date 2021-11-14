@@ -75,7 +75,6 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-lumi-bot/lumi-backend/binance-api/personal_data.py
 MANIFEST
 
 # PyInstaller
@@ -233,6 +232,7 @@ cython_debug/
 # SageMath parsed files
 
 # Environments
+.vscode/
 
 # Spyder project settings
 
