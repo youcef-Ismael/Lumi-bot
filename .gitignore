@@ -75,7 +75,6 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-bot_django_app/personal_data.py
 MANIFEST
 
 # PyInstaller

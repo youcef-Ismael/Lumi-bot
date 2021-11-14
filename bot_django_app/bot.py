@@ -1,11 +1,11 @@
 import asyncio
 import datetime
-from dataclasses import dataclass
-from enum import Enum
-from time import sleep
-
 import btalib
 import pandas as pd
+
+from dataclasses import dataclass
+from enum import Enum
+
 
 
 class TradeType(Enum):
