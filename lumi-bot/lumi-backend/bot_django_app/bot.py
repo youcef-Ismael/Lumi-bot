@@ -1,25 +1,27 @@
-import time
-import datetime
-import pandas as pd
-import btalib
 import asyncio
-
+import datetime
 from dataclasses import dataclass
 from enum import Enum
+from time import sleep
+
+import btalib
+import pandas as pd
 
 
 class TradeType(Enum):
     SPOT = 1
     FUTURE = 2
 
+
 class OrderType(Enum):
     MARKET = 1
     LIMIT = 2
 
+
 @dataclass
 class TradeData:
     trade_type: TradeType
-    # order_type: OrderType
+    order_type: OrderType
     pair: tuple
     pair_str: str  # Trading pair (e.g. BTCUSDT)
     quantity: float
@@ -33,31 +35,42 @@ class Bot:
 
     def __init__(self, api):
         self.api = api
-        self.entered = False
-        self.order = None
+        self.trade_data = None
+        self.df = pd.DataFrame()
+        self.stopped = False
+        self.loop = asyncio.get_event_loop()
 
     def set_trade_data(self, trade_data):
         self.trade_data = trade_data
         self.api.set_pair(trade_data.pair_str)
 
-    async def start(self):
-        i = 0
-        while True:
-            # if not self.entered:
-            #     self.buy()
-            #     self.entered = True
+    def stop(self):
+        self.stopped = True
+        self.loop.stop()
+        self.loop.close()
 
-            # else:
-            #     self.sell()
-            #     self.entered = False
-            tmp = await self.api.get_data()
-            print(tmp)
+    def start(self):
+        try:
+            asyncio.ensure_future(self.populate_df(), loop=self.loop)
+            asyncio.ensure_future(self.start_trade(), loop=self.loop)
+            self.loop.run_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            print("Closing Loop")
+            self.stop()
 
-            await asyncio.sleep(2)
-            if i == 5:
-                break
-        
-            i += 1
+    async def start_trade(self):
+        #should wait 10 secs before start
+        print('here')
+
+    async def populate_df(self):
+        print('Gathering Data for provided coin pair ' + self.trade_data.pair_str)
+        while not self.stopped:
+            realtime_data = await self.api.get_data()
+            self.df = self.df.append(realtime_data)
+            print(self.df)
+            await asyncio.sleep(1)
 
     def buy(self):
         """Function implementing the buy strategy"""
@@ -88,7 +101,8 @@ class Bot:
             sincebuy_ret = (sincebuy.Open.pct_change() + 1).cumprod() - 1
 
             if sincebuy_ret[-1] > 0.0015 or sincebuy_ret[-1] < -0.0015:
-                order = self.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type=self.trade_data.type,
+                order = self.client.create_order(symbol=self.trade_data.pair_str, side='SELL',
+                                                 type=self.trade_data.type,
                                                  quantity=self.trade_data.quantity)
                 self.orders.append(order)
                 print(str(datetime.datetime.now()) + '\t-\tSell request created')
