@@ -37,7 +37,7 @@ class Bot:
     def __init__(self, trade_data, client):
         self.trade_data = trade_data
         self.client = client
-        self.orders = []
+        self.orders = {}  # (coin pair, order)
         self.open_trades = {}  # to keep track of futures, for this we need persistence # (transaction_time, order) pairs
 
     def start(self):
@@ -78,7 +78,8 @@ class Bot:
             sincebuy_ret = (sincebuy.Open.pct_change() + 1).cumprod() - 1
 
             if sincebuy_ret[-1] > 0.0015 or sincebuy_ret[-1] < -0.0015:
-                order = self.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type=self.trade_data.type,
+                order = self.client.create_order(symbol=self.trade_data.pair_str, side='SELL',
+                                                 type=self.trade_data.type,
                                                  quantity=self.trade_data.quantity)
                 self.orders.append(order)
                 print(str(datetime.datetime.now()) + '\t-\tSell request created')
@@ -139,7 +140,7 @@ class Bot:
         levels = []
         for ratio in ratios:
             if highest_swing > lowest_swing:  # Uptrend
-                levels.append(max_level - (max_level - min_level) * ratios)
+                levels.append(max_level - (max_level - min_level) * ratio)
             else:  # Downtrend
-                levels.append(min_level + (max_level - min_level) * ratios)
+                levels.append(min_level + (max_level - min_level) * ratio)
         return levels
