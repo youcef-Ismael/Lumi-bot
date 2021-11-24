@@ -1,0 +1,15 @@
+* you should have python and pip installed in your machine:
+
+
+1/ open a shell in your local machine in the project folder.
+2 / execute these instructions one by one in order:
+
+pip install -r requirements.txt
+py manage.py migrate
+py manage.py runserver
+
+
+
+
+
+
