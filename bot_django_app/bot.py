@@ -2,6 +2,8 @@ import asyncio
 import datetime
 import btalib
 import pandas as pd
+import numpy as np
+import datetime
 
 from dataclasses import dataclass
 from enum import Enum
@@ -39,6 +41,7 @@ class Bot:
         self.df = pd.DataFrame()
         self.stopped = False
         self.loop = asyncio.get_event_loop()
+        self.entered = False
 
     def set_trade_data(self, trade_data):
         self.trade_data = trade_data
@@ -61,38 +64,52 @@ class Bot:
             self.stop()
 
     async def start_trade(self):
-        #should wait 10 secs before start
-        print('here')
+        print('\nWaiting 60 sec to gather data - ', datetime.datetime.now())
+        print()
+        await asyncio.sleep(60)
+        print('Gathered data until now:')
+        print(self.df)
+        print('\nStarting the trading logic - ', datetime.datetime.now())
+        print()
+
+        while not self.stopped:
+            if not self.entered:
+                self.trendfollow_buy()
+            else:
+                self.trendfollow_sell()
+
+            await asyncio.sleep(2)
+
 
     async def populate_df(self):
+        # TODO: Implement a limit that how many data enries we are going to store. Rn we store as many as the memory allows.
         print('Gathering Data for provided coin pair ' + self.trade_data.pair_str)
         while not self.stopped:
             realtime_data = await self.api.get_data()
-            self.df = self.df.append(realtime_data)
-            print(self.df)
+            self.df = self.df.append(realtime_data, ignore_index=True)
             await asyncio.sleep(1)
 
-    def buy(self):
-        """Function implementing the buy strategy"""
-        period = '1m'
-        data = self.get_dataframe(period)
+    def trendfollow_buy(self):
+        """Function implementing the trendfollow buy strategy"""
 
-        cumul_ret = (data.Open.pct_change() + 1).cumprod() - 1
-
-        if cumul_ret[-1] < -0.002:
+        lookback_period = self.df.iloc[-30:]
+        cumul_ret = (lookback_period.Price.pct_change() + 1).cumprod() - 1
+        print(cumul_ret[cumul_ret.last_valid_index()])
+        # If the price drops 0.2%, then we create a buy order
+        if cumul_ret[cumul_ret.last_valid_index()] < -0.002:
             if self.client.get_asset_balance(self.trade_data.pair[0]) >= self.trade_data.quantity:
                 order = self.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type=self.trade_data.type,
                                                  quantity=self.trade_data.quantity)
                 self.orders.append(order)
                 print(str(self.orders[-1]['transactTime']) + '\t-\tBuy request created')
+                self.entered = True
             else:
                 print('Not enough capital to execute trade')
-
         else:
             print(str(datetime.datetime.now()) + '\t-\tNo buy')
 
-    def sell(self):
-        """Function implementing the sell strategy"""
+    def trendfollow_sell(self):
+        """Function implementing the trendfollow sell strategy"""
         period = '1m'
         data = self.get_dataframe(period)
         sincebuy = data.loc[data.index > pd.to_datetime(self.orders[-1]['transactTime'], unit='ms')]
@@ -106,6 +123,7 @@ class Bot:
                                                  quantity=self.trade_data.quantity)
                 self.orders.append(order)
                 print(str(datetime.datetime.now()) + '\t-\tSell request created')
+                self.entered = False
             else:
                 print(str(datetime.datetime.now()) + '\t-\tNo sell')
 
