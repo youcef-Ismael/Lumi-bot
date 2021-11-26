@@ -4,6 +4,9 @@ from time import ctime
 import pandas as pd
 from binance import BinanceSocketManager, AsyncClient
 
+from bot_django_app.bot import TradeType
+from bot_django_app.model import Model
+
 
 @dataclass
 class Keys:
@@ -51,7 +54,38 @@ class API:
 class Controller:
     """Class that communicates with the view (frontend) and model (trading bot)"""
 
-    # TODO implement methods communicating with the frontend (Django) and, in turn, with the model
-
     def __init__(self):
-        pass
+        self.model = None
+
+    """
+    @param api_key = str
+    @param api_secret = str
+    @param quantity = float
+    @param pair = tuple(string, string)
+    """
+    def start(self, api_key, api_secret, quantity=0.001, pair=('BTC', 'USDT')):
+        self.model = Model(Keys(api_key, api_secret))
+        self.model.set_trade_data(trade_type=TradeType.SPOT, quantity=quantity, pair=pair)
+        self.model.bot.start()
+
+    def stop(self):
+        self.model.bot.stop()
+        self.model = None
+
+    """
+        @param quantity = float
+    """
+    def update_quantity(self, quantity):
+        if self.model is not None:
+            self.model.bot.set_trade_data(trade_data=TradeType.SPOT, quantity=quantity, pair=self.model.bot.trade_data.pair)
+        else:
+            print('Operation failed, model is None')
+
+    """
+        @param asset = string (e.g. 'BTC')
+    """
+    def get_asset_balance(self, asset):
+        if self.model is not None:
+            return self.model.api.client.get_asset_balance(asset=asset)
+        else:
+            print('Operation failed, model is None')
