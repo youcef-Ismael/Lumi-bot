@@ -1,13 +1,10 @@
 import asyncio
 import datetime
-import btalib
-import pandas as pd
-import numpy as np
-import datetime
-
 from dataclasses import dataclass
 from enum import Enum
 
+import btalib
+import pandas as pd
 
 
 class TradeType(Enum):
@@ -42,6 +39,7 @@ class Bot:
         self.stopped = False
         self.loop = asyncio.get_event_loop()
         self.entered = False
+        self.orders = []
 
     def set_trade_data(self, trade_data):
         self.trade_data = trade_data
@@ -69,25 +67,70 @@ class Bot:
         await asyncio.sleep(60)
         print('Gathered data until now:')
         print(self.df)
-        print('\nStarting the trading logic - ', datetime.datetime.now())
+        print('\nStarting the trading - ', datetime.datetime.now())
         print()
 
         while not self.stopped:
+            # TODO extract the buy and sell part to async functions
+            # buy
             if not self.entered:
-                self.trendfollow_buy()
-            else:
-                self.trendfollow_sell()
-
+                if self.get_rsi(timeframe='1h') < 15 or self.get_rsi(timeframe='1d') < 15 or self.get_rsi(
+                        timeframe='1w') < 15:
+                    if not self.entered:
+                        self.buy(self.trade_data.quantity)
+                elif self.get_rsi(timeframe='1d') < 30:
+                    if not self.entered:
+                        self.trendfollow_buy()
+                elif self.get_rsi(timeframe='1d') < 50:
+                    if self.get_ema(timeframe='1d') or self.get_ema(timeframe='1w') > self.df.iloc[-1].Price:
+                        if not self.entered:
+                            self.buy(self.trade_data.quantity)
+                elif self.get_sma(timeframe='1w') > (self.df.iloc[-1].Price + self.df.iloc[-1].Price * (1 / 4)):
+                    if not self.entered:
+                        self.buy(self.trade_data.quantity)
+            # sell
+            elif self.entered:
+                self.trendfollow_sell(profit_threshold=0.05, loss_threshold=0.02)
+                if self.entered:
+                    if self.get_rsi(timeframe='1m') > 85 or self.get_rsi(timeframe='1h') > 85:  # no need to check for
+                        # earlier dates since we checked for that when we bought
+                        if self.entered:
+                            self.sell(self.trade_data.quantity)
+                    elif self.get_rsi(timeframe='1m') > 50 or self.get_rsi(timeframe='1h') > 50:
+                        if self.get_ema(timeframe='1d') or self.get_ema(timeframe='1w') < self.df.iloc[-1].Price:
+                            if self.entered:
+                                self.sell(self.trade_data.quantity)
+                    elif self.get_sma(timeframe='1w') + (self.get_sma(timeframe='1w') * (1 / 4)) < self.df.iloc[-1].Price:
+                        if self.entered:
+                            self.sell(self.trade_data.quantity)
             await asyncio.sleep(2)
 
-
     async def populate_df(self):
-        # TODO: Implement a limit that how many data enries we are going to store. Rn we store as many as the memory allows.
         print('Gathering Data for provided coin pair ' + self.trade_data.pair_str)
         while not self.stopped:
             realtime_data = await self.api.get_data()
             self.df = self.df.append(realtime_data, ignore_index=True)
-            await asyncio.sleep(1)
+            if len(self.df) > 10000:
+                self.df = self.df.iloc[len(self.df) - 10000:]
+            await asyncio.sleep(5)
+
+    def buy(self, quantity):
+        if self.client.get_asset_balance(self.trade_data.pair[0]) >= quantity:
+            order = self.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type=self.trade_data.type,
+                                             quantity=quantity)
+            self.orders.append(order)
+            print(str(self.orders[-1]['transactTime']) + '\t-\tBuy request created')
+            self.entered = True
+        else:
+            print('Not enough capital to execute trade')
+
+    def sell(self, quantity):
+        order = self.client.create_order(symbol=self.trade_data.pair_str, side='SELL',
+                                         type=self.trade_data.type,
+                                         quantity=quantity)
+        self.orders.append(order)
+        print(str(datetime.datetime.now()) + '\t-\tSell request created')
+        self.entered = False
 
     def trendfollow_buy(self):
         """Function implementing the trendfollow buy strategy"""
@@ -97,33 +140,19 @@ class Bot:
         print(cumul_ret[cumul_ret.last_valid_index()])
         # If the price drops 0.2%, then we create a buy order
         if cumul_ret[cumul_ret.last_valid_index()] < -0.002:
-            if self.client.get_asset_balance(self.trade_data.pair[0]) >= self.trade_data.quantity:
-                order = self.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type=self.trade_data.type,
-                                                 quantity=self.trade_data.quantity)
-                self.orders.append(order)
-                print(str(self.orders[-1]['transactTime']) + '\t-\tBuy request created')
-                self.entered = True
-            else:
-                print('Not enough capital to execute trade')
+            self.buy(self.trade_data.quantity)
         else:
             print(str(datetime.datetime.now()) + '\t-\tNo buy')
 
-    def trendfollow_sell(self):
+    def trendfollow_sell(self, profit_threshold, loss_threshold):
         """Function implementing the trendfollow sell strategy"""
-        period = '1m'
-        data = self.get_dataframe(period)
+        data = self.get_dataframe('1m')
         sincebuy = data.loc[data.index > pd.to_datetime(self.orders[-1]['transactTime'], unit='ms')]
 
         if len(sincebuy) > 0:
             sincebuy_ret = (sincebuy.Open.pct_change() + 1).cumprod() - 1
-
-            if sincebuy_ret[-1] > 0.0015 or sincebuy_ret[-1] < -0.0015:
-                order = self.client.create_order(symbol=self.trade_data.pair_str, side='SELL',
-                                                 type=self.trade_data.type,
-                                                 quantity=self.trade_data.quantity)
-                self.orders.append(order)
-                print(str(datetime.datetime.now()) + '\t-\tSell request created')
-                self.entered = False
+            if sincebuy_ret[-1] > profit_threshold or sincebuy_ret[-1] < loss_threshold:
+                self.sell(self.trade_data.quantity)
             else:
                 print(str(datetime.datetime.now()) + '\t-\tNo sell')
 
@@ -138,17 +167,17 @@ class Bot:
         df = df.astype(float)
         return df
 
-    def get_sma(self, period=20):
-        df = self.get_dataframe()
+    def get_sma(self, timeframe, period=20):
+        df = self.get_dataframe(timeframe=timeframe)
         return df.Close.tail(period).mean()
 
-    def get_ema(self, period=20):
-        df = self.get_dataframe()
+    def get_ema(self, timeframe, period=20):
+        df = self.get_dataframe(timeframe=timeframe)
         ema = btalib.ema(df, period=period)
         return ema.df.ema[-1]
 
-    def get_rsi(self, period=14):
-        df = self.get_dataframe()
+    def get_rsi(self, timeframe, period=14):
+        df = self.get_dataframe(timeframe=timeframe)
         if period > len(df) - 1:
             period = len(df) - 1
         rsi = btalib.rsi(df, period=period)
