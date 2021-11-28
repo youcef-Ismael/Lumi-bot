@@ -1,20 +1,66 @@
 import os
+from dataclasses import dataclass
+from time import ctime
+
+import pandas as pd
+from binance import BinanceSocketManager, AsyncClient
 
 from bot import TradeData, Bot, TradeType, OrderType
-from controller import API, Keys
 
 
 def start():
     model.bot.start()
 
 
+@dataclass
+class Keys:
+    api_key: str
+    api_secret: str
+
+
+class API:
+    def __init__(self, keys, paper=True):
+        self.socket = None
+
+        self.client = AsyncClient(keys.api_key, keys.api_secret)
+
+        self.paper = paper
+        if self.paper:
+            self.client.API_URL = 'https://testnet.binance.vision/api'
+
+        self.socket_manager = BinanceSocketManager(self.client)
+
+    def set_pair(self, pair):
+        self.socket = self.socket_manager.trade_socket(pair)
+
+    async def get_data(self):
+        await self.socket.__aenter__()
+        data = await self.socket.recv()
+
+        return self.clean_data(data)
+
+    def clean_data(self, data):
+        frame = pd.DataFrame([data])
+        frame = frame.loc[:, ['s', 'E', 'p']]
+        frame.columns = ['Pair', 'Time', 'Price']
+        frame.Price = frame.Price.astype(float)
+        frame.Time = pd.to_datetime(frame.Time, unit='ms')
+
+        return frame
+
+    def get_asset_balance(self, asset):
+        if self.client.get_asset_balance(asset=asset) is not None:
+            return self.client.get_asset_balance(asset=asset)
+        return None
+
+    def futures_account_transfer(self, asset, amount, f_type, timestamp=ctime()):
+        self.client.futures_account_transfer(asset=asset, amount=amount, type=f_type, timestamp=timestamp)
+
+
 class Model:
     def __init__(self, keys):
         self.api = API(keys)
         self.bot = Bot(self.api)
-
-        self.orders = {}
-        self.open_trades = {}  # to keep track of futures, for this we need persistence # (transaction_time, order) pairs
 
     # TODO insert methods here that communicate with the Bot according to the trade data
 
