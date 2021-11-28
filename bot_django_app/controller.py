@@ -58,8 +58,8 @@ class Controller:
         self.model = None
 
     """
-    @param api_key = str
-    @param api_secret = str
+    @param api_key = str #from db
+    @param api_secret = str #from db
     @param quantity = float
     @param pair = tuple(string, string)
     """
@@ -73,7 +73,7 @@ class Controller:
         self.model = None
 
     """
-        @param quantity = float
+    @param quantity = float
     """
     def update_quantity(self, quantity):
         if self.model is not None:
@@ -82,7 +82,7 @@ class Controller:
             print('Operation failed, model is None')
 
     """
-        @param asset = string (e.g. 'BTC')
+    @param asset = string (e.g. 'BTC')
     """
     def get_asset_balance(self, asset):
         if self.model is not None:

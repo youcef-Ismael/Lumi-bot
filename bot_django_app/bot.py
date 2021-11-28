@@ -123,7 +123,6 @@ class Bot:
 
     def sell(self, quantity):
         order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL',
-                                         type=self.trade_data.type,
                                          quantity=quantity)
         self.orders.append(order)
         print(str(datetime.datetime.now()) + '\t-\tSell request created')
