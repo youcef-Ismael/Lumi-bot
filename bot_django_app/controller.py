@@ -1,91 +1,94 @@
-from dataclasses import dataclass
-from time import ctime
-
-import pandas as pd
-from binance import BinanceSocketManager, AsyncClient
-
 from bot_django_app.bot import TradeType
-from bot_django_app.model import Model
-
-
-@dataclass
-class Keys:
-    api_key: str
-    api_secret: str
-
-
-class API:
-    def __init__(self, keys, paper=True):
-        self.socket = None
-
-        self.client = AsyncClient(keys.api_key, keys.api_secret)
-
-        self.paper = paper
-        if self.paper:
-            self.client.API_URL = 'https://testnet.binance.vision/api'
-
-        self.socket_manager = BinanceSocketManager(self.client)
-
-    def set_pair(self, pair):
-        self.socket = self.socket_manager.trade_socket(pair)
-
-    async def get_data(self):
-        await self.socket.__aenter__()
-        data = await self.socket.recv()
-
-        return self.clean_data(data)
-
-    def clean_data(self, data):
-        frame = pd.DataFrame([data])
-        frame = frame.loc[:, ['s', 'E', 'p']]
-        frame.columns = ['Pair', 'Time', 'Price']
-        frame.Price = frame.Price.astype(float)
-        frame.Time = pd.to_datetime(frame.Time, unit='ms')
-
-        return frame
-
-    def get_asset_balance(self, asset):
-        return self.client.get_asset_balance(asset=asset)
-
-    def futures_account_transfer(self, asset, amount, f_type, timestamp=ctime()):
-        self.client.futures_account_transfer(asset=asset, amount=amount, type=f_type, timestamp=timestamp)
+from bot_django_app.model import Model, Keys
 
 
 class Controller:
     """Class that communicates with the view (frontend) and model (trading bot)"""
 
-    def __init__(self):
-        self.model = None
+    def __init__(self, api_key, api_secret):
+        self.model = Model(Keys(api_key, api_secret))
 
     """
-    @param api_key = str #from db
-    @param api_secret = str #from db
     @param quantity = float
     @param pair = tuple(string, string)
     """
-    def start(self, api_key, api_secret, quantity=0.001, pair=('BTC', 'USDT')):
-        self.model = Model(Keys(api_key, api_secret))
+    def start(self, quantity=0.001, pair=('BTC', 'USDT')):
         self.model.set_trade_data(trade_type=TradeType.SPOT, quantity=quantity, pair=pair)
         self.model.bot.start()
 
     def stop(self):
         self.model.bot.stop()
-        self.model = None
+        # self.model = None
 
     """
     @param quantity = float
     """
     def update_quantity(self, quantity):
-        if self.model is not None:
-            self.model.bot.set_trade_data(trade_data=TradeType.SPOT, quantity=quantity, pair=self.model.bot.trade_data.pair)
-        else:
-            print('Operation failed, model is None')
+        self.model.bot.set_trade_data(trade_data=TradeType.SPOT, quantity=quantity,
+                                      pair=self.model.bot.trade_data.pair)
 
-    """
-    @param asset = string (e.g. 'BTC')
-    """
-    def get_asset_balance(self, asset):
-        if self.model is not None:
-            return self.model.api.client.get_asset_balance(asset=asset)
-        else:
-            print('Operation failed, model is None')
+    def get_balances_for_assets(self):
+        assets = ["BTC", "LTC", "ETH", "NEO", "BNB", "QTUM", "EOS", "SNT", "BNT", "GAS", "BCC", "USDT", "HSR", "OAX",
+                  "DNT",
+                  "MCO", "ICN", "ZRX", "OMG", "WTC", "YOYO", "LRC", "TRX", "SNGLS", "STRAT", "BQX", "FUN", "KNC", "CDT",
+                  "XVG",
+                  "IOTA", "SNM", "LINK", "CVC", "TNT", "REP", "MDA", "MTL", "SALT", "NULS", "SUB", "STX", "MTH", "ADX",
+                  "ETC",
+                  "ENG", "ZEC", "AST", "GNT", "DGD", "BAT", "DASH", "POWR", "BTG", "REQ", "XMR", "EVX", "VIB", "ENJ",
+                  "VEN",
+                  "ARK", "XRP", "MOD", "STORJ", "KMD", "RCN", "EDO", "DATA", "DLT", "MANA", "PPT", "RDN", "GXS", "AMB",
+                  "ARN",
+                  "BCPT", "CND", "GVT", "POE", "BTS", "FUEL", "XZC", "QSP", "LSK", "BCD", "TNB", "ADA", "LEND", "XLM",
+                  "CMT",
+                  "WAVES", "WABI", "GTO", "ICX", "OST", "ELF", "AION", "WINGS", "BRD", "NEBL", "NAV", "VIBE", "LUN",
+                  "TRIG",
+                  "APPC", "CHAT", "RLC", "INS", "PIVX", "IOST", "STEEM", "NANO", "AE", "VIA", "BLZ", "SYS", "RPX",
+                  "NCASH",
+                  "POA", "ONT", "ZIL", "STORM", "XEM", "WAN", "WPR", "QLC", "GRS", "CLOAK", "LOOM", "BCN", "TUSD",
+                  "ZEN", "SKY",
+                  "THETA", "IOTX", "QKC", "AGI", "NXS", "SC", "NPXS", "KEY", "NAS", "MFT", "DENT", "IQ", "ARDR", "HOT",
+                  "VET",
+                  "DOCK", "POLY", "VTHO", "ONG", "PHX", "HC", "GO", "PAX", "RVN", "DCR", "USDC", "MITH", "BCHABC",
+                  "BCHSV",
+                  "REN", "BTT", "USDS", "FET", "TFUEL", "CELR", "MATIC", "ATOM", "PHB", "ONE", "FTM", "BTCB", "USDSB",
+                  "CHZ",
+                  "COS", "ALGO", "ERD", "DOGE", "BGBP", "DUSK", "ANKR", "WIN", "TUSDB", "COCOS", "PERL", "TOMO", "BUSD",
+                  "BAND",
+                  "BEAM", "HBAR", "XTZ", "NGN", "DGB", "NKN", "GBP", "EUR", "KAVA", "RUB", "UAH", "ARPA", "TRY", "CTXC",
+                  "AERGO",
+                  "BCH", "TROY", "BRL", "VITE", "FTT", "AUD", "OGN", "DREP", "BULL", "BEAR", "ETHBULL", "ETHBEAR",
+                  "XRPBULL",
+                  "XRPBEAR", "EOSBULL", "EOSBEAR", "TCT", "WRX", "LTO", "ZAR", "MBL", "COTI", "BKRW", "BNBBULL",
+                  "BNBBEAR",
+                  "HIVE", "STPT", "SOL", "IDRT", "CTSI", "CHR", "BTCUP", "BTCDOWN", "HNT", "JST", "FIO", "BIDR", "STMX",
+                  "MDT",
+                  "PNT", "COMP", "IRIS", "MKR", "SXP", "SNX", "DAI", "ETHUP", "ETHDOWN", "ADAUP", "ADADOWN", "LINKUP",
+                  "LINKDOWN", "DOT", "RUNE", "BNBUP", "BNBDOWN", "XTZUP", "XTZDOWN", "AVA", "BAL", "YFI", "SRM", "ANT",
+                  "CRV",
+                  "SAND", "OCEAN", "NMR", "LUNA", "IDEX", "RSR", "PAXG", "WNXM", "TRB", "EGLD", "BZRX", "WBTC", "KSM",
+                  "SUSHI",
+                  "YFII", "DIA", "BEL", "UMA", "EOSUP", "TRXUP", "EOSDOWN", "TRXDOWN", "XRPUP", "XRPDOWN", "DOTUP",
+                  "DOTDOWN",
+                  "NBS", "WING", "SWRV", "LTCUP", "LTCDOWN", "CREAM", "UNI", "OXT", "SUN", "AVAX", "BURGER", "BAKE",
+                  "FLM",
+                  "SCRT", "XVS", "CAKE", "SPARTA", "UNIUP", "UNIDOWN", "ALPHA", "ORN", "UTK", "NEAR", "VIDT", "AAVE",
+                  "FIL",
+                  "SXPUP", "SXPDOWN", "INJ", "FILDOWN", "FILUP", "YFIUP", "YFIDOWN", "CTK", "EASY", "AUDIO", "BCHUP",
+                  "BCHDOWN",
+                  "BOT", "AXS", "AKRO", "HARD", "KP3R", "RENBTC", "SLP", "STRAX", "UNFI", "CVP", "BCHA", "FOR", "FRONT",
+                  "ROSE",
+                  "HEGIC", "AAVEUP", "AAVEDOWN", "PROM", "BETH", "SKL", "GLM", "SUSD", "COVER", "GHST", "SUSHIUP",
+                  "SUSHIDOWN",
+                  "XLMUP", "XLMDOWN", "DF", "JUV", "PSG", "BVND", "GRT", "CELO", "TWT", "REEF", "OG", "ATM", "ASR",
+                  "1INCH",
+                  "RIF", "BTCST", "TRU", "DEXE", "CKB", "FIRO", "LIT", "PROS", "VAI", "SFP", "FXS", "DODO", "AUCTION",
+                  "UFT",
+                  "ACM", "PHA", "TVK", "BADGER", "FIS", "OM", "POND", "ALICE", "DEGO", "BIFI", "LINA"]
+
+        balances_assets = {}
+
+        for asset in assets:
+            amount = self.model.api.get_asset_balance(asset)
+            if amount is not None:
+                balances_assets[asset] = amount['free']
+        return balances_assets
