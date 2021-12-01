@@ -1,9 +1,10 @@
 import os
+import pandas as pd
+
 from dataclasses import dataclass
 from time import ctime
-
-import pandas as pd
-from binance import BinanceSocketManager, AsyncClient
+from binance import BinanceSocketManager
+from binance.client import Client
 
 from bot import TradeData, Bot, TradeType, OrderType
 
@@ -21,8 +22,7 @@ class Keys:
 class API:
     def __init__(self, keys, paper=True):
         self.socket = None
-
-        self.client = AsyncClient(keys.api_key, keys.api_secret)
+        self.client = Client(keys.api_key, keys.api_secret)
 
         self.paper = paper
         if self.paper:
@@ -72,5 +72,5 @@ class Model:
 
 model = Model(Keys(os.environ.get('binance_api'), os.environ.get('binance_secret')))
 model.set_trade_data(trade_type=TradeType.SPOT, quantity=0.001, pair=('BTC', 'USDT'))
-# print(model.api.get_asset_balance('BTC'))
+print(model.api.get_asset_balance('BTC'))
 start()
