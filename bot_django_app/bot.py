@@ -10,8 +10,8 @@ from enum import Enum
 
 
 class TradeType(Enum):
-    SPOT = 1
-    FUTURE = 2
+    SPOT = 'SPOT'
+    FUTURE = 'FUTURE'
 
 
 class OrderType(Enum):
@@ -71,42 +71,43 @@ class Bot:
 
         while not self.stopped:
             # TODO extract the buy and sell part to async functions
+
             # buy
             if not self.entered:
-                if self.get_rsi(timeframe='1h') < 15 or self.get_rsi(timeframe='1d') < 15 or self.get_rsi(
-                        timeframe='1w') < 15:
-                    if not self.entered:
-                        self.buy(self.trade_data.quantity)
+                if self.get_rsi(timeframe='1h') < 15 or self.get_rsi(timeframe='1d') < 15 or self.get_rsi(timeframe='1w') < 15:
+                    self.buy(self.trade_data.quantity)
+
                 elif self.get_rsi(timeframe='1d') < 30:
-                    if not self.entered:
-                        self.trendfollow_buy()
+                    self.trendfollow_buy()
+
                 elif self.get_rsi(timeframe='1d') < 50:
                     if self.get_ema(timeframe='1d') or self.get_ema(timeframe='1w') > self.df.iloc[-1].Price:
-                        if not self.entered:
-                            self.buy(self.trade_data.quantity)
-                elif self.get_sma(timeframe='1w') > (self.df.iloc[-1].Price + self.df.iloc[-1].Price * (1 / 4)):
-                    if not self.entered:
                         self.buy(self.trade_data.quantity)
+
+                elif self.get_sma(timeframe='1w') > (self.df.iloc[-1].Price + self.df.iloc[-1].Price * (1 / 4)):
+                    self.buy(self.trade_data.quantity)
+                    
             # sell
-            elif self.entered:
+            else:
                 self.trendfollow_sell(profit_threshold=0.05, loss_threshold=0.02)
+
                 if self.entered:
                     if self.get_rsi(timeframe='1m') > 85 or self.get_rsi(timeframe='1h') > 85:  # no need to check for
                         # earlier dates since we checked for that when we bought
-                        if self.entered:
-                            self.sell(self.trade_data.quantity)
+                        self.sell(self.trade_data.quantity)
+
                     elif self.get_rsi(timeframe='1m') > 50 or self.get_rsi(timeframe='1h') > 50:
                         if self.get_ema(timeframe='1d') or self.get_ema(timeframe='1w') < self.df.iloc[-1].Price:
-                            if self.entered:
-                                self.sell(self.trade_data.quantity)
-                    elif self.get_sma(timeframe='1w') + (self.get_sma(timeframe='1w') * (1 / 4)) < self.df.iloc[-1].Price:
-                        if self.entered:
                             self.sell(self.trade_data.quantity)
+
+                    elif self.get_sma(timeframe='1w') + (self.get_sma(timeframe='1w') * (1 / 4)) < self.df.iloc[-1].Price:
+                        self.sell(self.trade_data.quantity)
+
             await asyncio.sleep(2)
 
     async def populate_df(self):
-        # TODO: Implement a limit that how many data enries we are going to store. Rn we store as many as the memory allows.
         print('Gathering Data for provided coin pair ' + self.trade_data.pair_str)
+        
         while not self.stopped:
             realtime_data = await self.api.get_data()
             self.df = self.df.append(realtime_data, ignore_index=True)
@@ -115,11 +116,11 @@ class Bot:
             await asyncio.sleep(5)
 
     def buy(self, quantity):
-        if self.api.client.get_asset_balance(self.trade_data.pair[0]) >= quantity:
-            order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type=self.trade_data.type,
+        if float(self.api.client.get_asset_balance(self.trade_data.pair[0])['free']) >= quantity:
+            order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type='MARKET',
                                              quantity=quantity)
             self.orders.append(order)
-            print(str(self.orders[-1]['transactTime']) + '\t-\tBuy request created')
+            print(str(datetime.datetime.now()) + '\t-\tBuy request created')
             self.entered = True
         else:
             print('Not enough capital to execute trade')
@@ -145,6 +146,7 @@ class Bot:
 
     def trendfollow_sell(self, profit_threshold, loss_threshold):
         """Function implementing the trendfollow sell strategy"""
+
         data = self.get_dataframe('1m')
         sincebuy = data.loc[data.index > pd.to_datetime(self.orders[-1]['transactTime'], unit='ms')]
 
