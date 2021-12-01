@@ -2,3 +2,5 @@ django
 djangorestframework
 pandas
 binance
+bta-lib
+requests

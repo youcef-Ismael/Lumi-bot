@@ -87,9 +87,11 @@ class Bot:
                         self.buy(self.trade_data.quantity)
             # sell
             elif self.entered:
-                self.trendfollow_sell(profit_threshold=0.05, loss_threshold=0.02)
+                self.trendfollow_sell(
+                    profit_threshold=0.05, loss_threshold=0.02)
                 if self.entered:
-                    if self.get_rsi(timeframe='1m') > 85 or self.get_rsi(timeframe='1h') > 85:  # no need to check for
+                    # no need to check for
+                    if self.get_rsi(timeframe='1m') > 85 or self.get_rsi(timeframe='1h') > 85:
                         # earlier dates since we checked for that when we bought
                         if self.entered:
                             self.sell(self.trade_data.quantity)
@@ -114,16 +116,17 @@ class Bot:
     def buy(self, quantity):
         if self.api.client.get_asset_balance(self.trade_data.pair[0]) >= quantity:
             order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type=self.trade_data.type,
-                                             quantity=quantity)
+                                                 quantity=quantity)
             self.orders.append(order)
-            print(str(self.orders[-1]['transactTime']) + '\t-\tBuy request created')
+            print(str(self.orders[-1]['transactTime']) +
+                  '\t-\tBuy request created')
             self.entered = True
         else:
             print('Not enough capital to execute trade')
 
     def sell(self, quantity):
         order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL',
-                                         quantity=quantity)
+                                             quantity=quantity)
         self.orders.append(order)
         print(str(datetime.datetime.now()) + '\t-\tSell request created')
         self.entered = False
@@ -143,7 +146,8 @@ class Bot:
     def trendfollow_sell(self, profit_threshold, loss_threshold):
         """Function implementing the trendfollow sell strategy"""
         data = self.get_dataframe('1m')
-        sincebuy = data.loc[data.index > pd.to_datetime(self.orders[-1]['transactTime'], unit='ms')]
+        sincebuy = data.loc[data.index > pd.to_datetime(
+            self.orders[-1]['transactTime'], unit='ms')]
 
         if len(sincebuy) > 0:
             sincebuy_ret = (sincebuy.Open.pct_change() + 1).cumprod() - 1
@@ -153,8 +157,10 @@ class Bot:
                 print(str(datetime.datetime.now()) + '\t-\tNo sell')
 
     def get_dataframe(self, timeframe='1h'):
-        timestamp = self.api.client._get_earliest_valid_timestamp(self.trade_data.pair_str, '1d')
-        klines = self.api.client.get_historical_klines(self.trade_data.pair_str, timeframe, timestamp, limit=1000)
+        timestamp = self.api.client._get_earliest_valid_timestamp(
+            self.trade_data.pair_str, '1d')
+        klines = self.api.client.get_historical_klines(
+            self.trade_data.pair_str, timeframe, timestamp, limit=1000)
         df = pd.DataFrame(klines)
         df = df.iloc[:, :6]
         df.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
