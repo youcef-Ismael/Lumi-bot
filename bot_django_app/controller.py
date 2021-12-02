@@ -1,6 +1,8 @@
 from bot_django_app.bot import TradeType
 from bot_django_app.model import Model, Keys
 
+# The BOT
+
 
 class Controller:
     """Class that communicates with the view (frontend) and model (trading bot)"""
