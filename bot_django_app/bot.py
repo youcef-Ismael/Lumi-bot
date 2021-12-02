@@ -130,12 +130,15 @@ class Bot:
                 self.df = self.df.iloc[len(self.df) - 10000:]
             await asyncio.sleep(5)
 
+
+
     def __buy(self, quantity):
         if float(self.api.client.get_asset_balance(self.trade_data.pair[0])['free']) >= quantity:
             order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type='MARKET',
                                                  quantity=quantity)
             self.orders.append(order)
             print(str(datetime.datetime.now()) + '\t-\tBuy request created')
+
             self.entered = True
         else:
             print('Not enough capital to execute trade')
@@ -172,6 +175,7 @@ class Bot:
                 self.__sell(self.trade_data.quantity)
             else:
                 print(str(datetime.datetime.now()) + '\t-\tNo sell')
+
 
     def get_dataframe(self, timeframe=Client.KLINE_INTERVAL_1HOUR):
         timestamp = self.api.client._get_earliest_valid_timestamp(self.trade_data.pair_str, '1d')
