@@ -1,12 +1,20 @@
 import os
 import pandas as pd
-
+import asyncio
 from dataclasses import dataclass
 from time import ctime
 from binance import BinanceSocketManager
 from binance.client import Client
 
 from .bot import TradeData, Bot, TradeType, OrderType
+
+# create a new event loop
+
+
+def create_new_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return asyncio.get_event_loop()
 
 
 def start():
@@ -27,8 +35,9 @@ class API:
         self.paper = paper
         if self.paper:
             self.client.API_URL = 'https://testnet.binance.vision/api'
-
-        self.socket_manager = BinanceSocketManager(self.client)
+        # i added the second argument loop to create a new event loop other than the thread main loop
+        self.socket_manager = BinanceSocketManager(
+            self.client, loop=create_new_loop())
 
     def set_pair(self, pair):
         self.socket = self.socket_manager.trade_socket(pair)
