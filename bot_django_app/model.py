@@ -6,7 +6,7 @@ from time import ctime
 from binance import BinanceSocketManager
 from binance.client import Client
 
-from bot import TradeData, Bot, TradeType, OrderType
+from .bot import TradeData, Bot, TradeType, OrderType
 
 
 def start():
@@ -54,7 +54,8 @@ class API:
         return None
 
     def futures_account_transfer(self, asset, amount, f_type, timestamp=ctime()):
-        self.client.futures_account_transfer(asset=asset, amount=amount, type=f_type, timestamp=timestamp)
+        self.client.futures_account_transfer(
+            asset=asset, amount=amount, type=f_type, timestamp=timestamp)
 
 
 class Model:
@@ -66,11 +67,14 @@ class Model:
 
     def set_trade_data(self, trade_type: TradeType, quantity: float, pair: tuple = ('BTC', 'USDT')):
         pair_str = pair[0] + pair[1]
-        trade_data = TradeData(trade_type, OrderType.MARKET, pair, pair_str, quantity)
+        trade_data = TradeData(
+            trade_type, OrderType.MARKET, pair, pair_str, quantity)
         self.bot.set_trade_data(trade_data)
 
 
-model = Model(Keys(os.environ.get('binance_api'), os.environ.get('binance_secret')))
-model.set_trade_data(trade_type=TradeType.SPOT, quantity=0.001, pair=('BTC', 'USDT'))
+model = Model(Keys(os.environ.get('binance_api'),
+              os.environ.get('binance_secret')))
+model.set_trade_data(trade_type=TradeType.SPOT,
+                     quantity=0.001, pair=('BTC', 'USDT'))
 print(model.api.get_asset_balance('BTC'))
 start()

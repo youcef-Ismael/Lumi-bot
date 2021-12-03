@@ -30,20 +30,20 @@ response status : 200 (successful logout) , 400 (error)
 
 http://127.0.0.1:8000/start (HTTP POST request) - return the bot object as json
 Input: the request body should contain (request.body : {api_key:xxx, api_secret:xxx, quantity: float, pair: array_of string[2]})
-Output: (bot object as json)
+Output: None
 response status : 200 (successful start) 
 
 
 http://127.0.0.1:8000/stop (HTTP POST request) 
-Input: the request body should contain (request.body : {obj: (json object of the bot)})
+Input: the request body should contain (request.body :  {"api_key": xxx, "api_secret": xxxxx})
 Output: None
-response status : 200 (successful stop) 
+response status : 200 (successful stop) 400 (error)
 
 
 http://127.0.0.1:8000/update (HTTP POST request) 
-Input: the request body should contain (request.body : {obj: (json object of the bot),  quantity: float})
+Input: the request body should contain (request.body :  {"api_key": xxx, "api_secret": xxxxx, quantity: float})
 Output: None
-response status : 200 (successful update)
+response status : 200 (successful update) 400 (error)
 
 
 http://127.0.0.1:8000/balances (HTTP POST request)
@@ -58,7 +58,6 @@ Output: User Object
 response status : 200 (successful registration) , 400 (invalid data)
 
 i have set up sessions you have to think about sessions for the login and logout.
-(You can find this comment under "bot_django_app/urls.py" as well)
 
 happy coding, 
 Youcef 

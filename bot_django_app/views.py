@@ -1,7 +1,6 @@
-from .controller import Controller, get_balances_for_assets
+from .controller import *
 from django.http.response import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404
-# from django.views.generic import ListView
 from django.views import View
 from .serializers import *
 import json
@@ -81,10 +80,10 @@ class GetAssetsBalance(View):
         if ser.is_valid():
             api_key = ser.validated_data["api_key"]
             api_secret = ser.validated_data["api_secret"]
-
-            #######CALL FOR GET ASSETS BALANCE FUNCTION ######
             balances_dict = get_balances_for_assets(api_key, api_secret)
-        return JsonResponse(json.dumps(balances_dict), status=200, safe=False)
+            return JsonResponse(json.dumps(balances_dict), status=200, safe=False)
+        else:
+            return JsonResponse(status=400, safe=False)
 
 
 class StartBot(View):
@@ -95,44 +94,32 @@ class StartBot(View):
             api_key = ser.validated_data["api_key"]
             api_secret = ser.validated_data["api_secret"]
             quantity = ser.validated_data["quantity"]
-            pair = set(ser.validated_data["pair"])
-
-            #######CALL FOR GET ASSETS BALANCE FUNCTION ######
-        bot_instance = Controller(api_key, api_secret)
-        bot_instance.start(quantity, pair)
-        return JsonResponse(json.dumps(bot_instance), status=200, safe=False)
-
-
-"""
-https://pythonexamples.org/convert-python-class-object-to-json/
-"""
+            pair = tuple(ser.validated_data["pair"])
+            start(api_key, api_secret, quantity, pair)
+            return JsonResponse(status=200, safe=False)
+        else:
+            return JsonResponse(status=400, safe=False)
 
 
 class UpdateBot(View):
     def post(self, request):
         data = json.loads(request.body)
-        obj = json.loads(data.obj)
-        obj.update_quantity(data.quantity)
-        return JsonResponse(status=200, safe=False)
+        ser = LoginSerializer(data=data)
+        if ser.is_valid():
+            api_key = ser.validated_data["api_key"]
+            update_quantity(api_key, data.quantity)
+            return JsonResponse(status=200, safe=False)
+        else:
+            return JsonResponse(status=400, safe=False)
 
 
 class StopBot(View):
     def post(self, request):
         data = json.loads(request.body)
-        obj = json.loads(data.obj)
-        obj.stop()
-        return JsonResponse(status=200, safe=False)
-# class MyView4(View):
-#     def get(self, request):
-#         # <view logic>
-#         return JsonResponse()
-
-# class MyView4(View):
-#     def get(self, request):
-#         # <view logic>
-#         return JsonResponse()
-
-# class MyView4(View):
-#     def get(self, request):
-#         # <view logic>
-#         return JsonResponse()
+        ser = LoginSerializer(data=data)
+        if ser.is_valid():
+            api_key = ser.validated_data["api_key"]
+            stop(api_key)
+            return JsonResponse(status=200, safe=False)
+        else:
+            return JsonResponse(status=400, safe=False)
