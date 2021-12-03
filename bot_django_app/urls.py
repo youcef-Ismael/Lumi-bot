@@ -3,48 +3,53 @@ from bot_django_app.views import *
 
 
 """
-Hello guys
-
-what i have made so far:
-    - created a model for the User
-    - created the views for (Login, Registration, Logout)
-    - installed the rest_framework
-    - created different Serialisers to communicate with the front ( UserSerializer, LoginSerializer)
-    - linked the views 
-    - provided indra with detailed informations about the links to interact with
-    - created requirement.txt file, i have copied in that file all the external packages we used so far,
-    from now on any other package you use in the app you have to put its name in the requirements.txt 
-    - created how_to_lunch_the_server.txt, it contains the set of instructions to lunch the django server
-
-tommorow: 
-    - Indra told me that he will show at least the main interface to the mentor
-    - for my part i will show him what i have done so far 
-
-And we have to set up a meeting in the few next days, to discuss about the remainings parts.
 
 
 For Indra : (this will help you to make the front)
 the User Object is :
-{"username": xxx,
-"last_name": xxx,
+{"api_key": xxx,
+"api_secret": xxx,
 "first_name": xxx,
-"password": xxx,
-"tel_number": xxx,
-"email": xxx, }
+"last_name": xxx,
+}
 
  
 1/ http://127.0.0.1:8000/login  (HTTP POST request) 
-Input: the request body should contain (request.body : {"username": xxx, "password": xxxxx})
+Input: the request body should contain (request.body : {"api_key": xxx, "api_secret": xxxxx})
 Output: User Object
-response status : 200 (successful login) , 403 (user exists but wrong password),404( user don't exists), 400 (invalid data)
+response status : 200 (successful login) , 403 (user exists but wrong api_secret),404( user don't exists), 400 (invalid data)
 
 
-the request body should contain (request.body : {"username": xxx, "password": xxxxx})
+the request body should contain (request.body : {"api_key": xxx, "api_secret": xxxxx})
 
 2/ http://127.0.0.1:8000/logout  (HTTP POST request) 
-Input: the request body should contain (request.body : {"username": xxx, "password": xxxxx})
+Input: the request body should contain (request.body : {"api_key": xxx, "api_secret": xxxxx})
 Output: None
 response status : 200 (successful logout) , 400 (error)
+
+
+http://127.0.0.1:8000/start (HTTP POST request) - return the bot object as json
+Input: the request body should contain (request.body : {api_key:xxx, api_secret:xxx, quantity: float, pair: array_of string[2]})
+Output: (bot object as json)
+response status : 200 (successful start) 
+
+
+http://127.0.0.1:8000/stop (HTTP POST request) 
+Input: the request body should contain (request.body : {obj: (json object of the bot)})
+Output: None
+response status : 200 (successful stop) 
+
+
+http://127.0.0.1:8000/update (HTTP POST request) 
+Input: the request body should contain (request.body : {obj: (json object of the bot),  quantity: float})
+Output: None
+response status : 200 (successful update)
+
+
+http://127.0.0.1:8000/balances (HTTP POST request)
+Input: the request body should contain (request.body : {api_key:xxx, api_secret:xxx})
+Output: dict of pairs {asset: value, ...}
+response status : 200 (successful)
 
 
 http://127.0.0.1:8000/register (HTTP POST request) - return the user object (informations about the user)
@@ -64,7 +69,11 @@ urlpatterns = [
     path('', MainView.as_view()),
     path('login/', LoginView.as_view()),
     path('logout/', LogoutView.as_view()),
-    path('register/', RegisterView.as_view())
+    path('register/', RegisterView.as_view()),
+    path('start/', StartBot.as_view()),
+    path('stop/', StopBot.as_view()),
+    path('update/', UpdateBot.as_view()),
+    path('balances/', GetAssetsBalance.as_view()),
 ]
 
 

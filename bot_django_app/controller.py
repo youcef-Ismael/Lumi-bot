@@ -1,6 +1,8 @@
 from bot_django_app.bot import TradeType
 from bot_django_app.model import Model, Keys
 
+# The BOT
+
 
 class Controller:
     """Class that communicates with the view (frontend) and model (trading bot)"""
@@ -12,8 +14,10 @@ class Controller:
     @param quantity = float
     @param pair = tuple(string, string)
     """
+
     def start(self, quantity=0.001, pair=('BTC', 'USDT')):
-        self.model.set_trade_data(trade_type=TradeType.SPOT, quantity=quantity, pair=pair)
+        self.model.set_trade_data(
+            trade_type=TradeType.SPOT, quantity=quantity, pair=pair)
         self.model.bot.start()
 
     def stop(self):
@@ -23,6 +27,7 @@ class Controller:
     """
     @param quantity = float
     """
+
     def update_quantity(self, quantity):
         self.model.bot.set_trade_data(trade_data=TradeType.SPOT, quantity=quantity,
                                       pair=self.model.bot.trade_data.pair)
@@ -92,3 +97,8 @@ class Controller:
             if amount is not None:
                 balances_assets[asset] = amount['free']
         return balances_assets
+
+
+# TO IMPLEMENT
+def get_balances_for_assets(api_key, api_secret):
+    pass
