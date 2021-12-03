@@ -20,7 +20,7 @@ class Keys:
 
 
 class API:
-    def __init__(self, keys, paper=True):
+    def __init__(self, keys: Keys, paper=True):
         self.socket = None
         self.client = Client(keys.api_key, keys.api_secret)
 
@@ -58,7 +58,7 @@ class API:
 
 
 class Model:
-    def __init__(self, keys):
+    def __init__(self, keys: Keys):
         self.api = API(keys)
         self.bot = Bot(self.api)
 
