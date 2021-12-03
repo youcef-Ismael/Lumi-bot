@@ -1,3 +1,4 @@
+from typing import Tuple
 from bot_django_app.bot import TradeType
 from bot_django_app.model import Model, Keys
 
@@ -7,28 +8,20 @@ from bot_django_app.model import Model, Keys
 class Controller:
     """Class that communicates with the view (frontend) and model (trading bot)"""
 
-    def __init__(self, api_key, api_secret):
+    def __init__(self, api_key: str, api_secret: str):
         self.model = Model(Keys(api_key, api_secret))
 
-    """
-    @param quantity = float
-    @param pair = tuple(string, string)
-    """
-
-    def start(self, quantity=0.001, pair=('BTC', 'USDT')):
+    def start(self, quantity: float = 0.001, pair: Tuple[str, str] = ('BTC', 'USDT')) -> None:
+        
         self.model.set_trade_data(
             trade_type=TradeType.SPOT, quantity=quantity, pair=pair)
         self.model.bot.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self.model.bot.stop()
         # self.model = None
 
-    """
-    @param quantity = float
-    """
-
-    def update_quantity(self, quantity):
+    def update_quantity(self, quantity: float) -> None:
         self.model.bot.set_trade_data(trade_data=TradeType.SPOT, quantity=quantity,
                                       pair=self.model.bot.trade_data.pair)
 
