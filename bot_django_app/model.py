@@ -81,9 +81,9 @@ class Model:
         self.bot.set_trade_data(trade_data)
 
 
-model = Model(Keys(os.environ.get('binance_api'),
-              os.environ.get('binance_secret')))
-model.set_trade_data(trade_type=TradeType.SPOT,
-                     quantity=0.001, pair=('BTC', 'USDT'))
-print(model.api.get_asset_balance('BTC'))
-start()
+# model = Model(Keys(os.environ.get('binance_api'),
+#               os.environ.get('binance_secret')))
+# model.set_trade_data(trade_type=TradeType.SPOT,
+#                      quantity=0.001, pair=('BTC', 'USDT'))
+# print(model.api.get_asset_balance('BTC'))
+# start()
