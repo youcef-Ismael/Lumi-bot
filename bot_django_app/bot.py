@@ -42,7 +42,6 @@ class Bot:
         self.df = pd.DataFrame()
         self.stopped = False
         self.loop = asyncio.get_event_loop()
-        self.entered = False
         self.orders = []
         self.fibo_lvls = []
         self.sentiment = None
@@ -59,7 +58,7 @@ class Bot:
     def start(self):
         try:
             asyncio.ensure_future(self.populate_df(), loop=self.loop)
-            asyncio.ensure_future(self.refresh_fibo_lvls(), loop=self.loop)
+            asyncio.ensure_future(self.refresh_sentiment_from_fibo(), loop=self.loop)
             asyncio.ensure_future(self.start_trade(), loop=self.loop)
             self.loop.run_forever()
         except KeyboardInterrupt:
@@ -79,57 +78,56 @@ class Bot:
 
         while not self.stopped:
 
-            if (not self.entered or Sentiment.BULLISH) and (len(self.orders) < 3 or not all(order['side'] == 'BUY' for order in self.orders[-3:-1])):
-                if self.get_rsi(timeframe=Client.KLINE_INTERVAL_15MINUTE) < 15 or self.get_rsi(
-                        timeframe=Client.KLINE_INTERVAL_1HOUR) < 15:
-                    print('RSI is very low, strong buy signal')
+            if len(self.orders) > 0:
+                print('Attempting sell at given profit/loss threshold')
+                self.threshold_sell(profit_threshold=1, loss_threshold=-1)
+
+            if self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) < 15 or self.get_rsi(
+                    timeframe=Client.KLINE_INTERVAL_15MINUTE) < 15:
+                print('1m-15m RSI is very low, strong buy signal')
+                self.__buy(self.trade_data.quantity)
+            if self.get_rsi(timeframe=Client.KLINE_INTERVAL_30MINUTE) < 25 or self.get_rsi(
+                    timeframe=Client.KLINE_INTERVAL_1HOUR) < 25:
+                print('30m-60m RSI is low, buy signal, but the trend is being checked too')
+                self.trendfollow_buy()
+            if self.get_rsi(timeframe=Client.KLINE_INTERVAL_30MINUTE) < 35 and self.get_rsi(
+                    timeframe=Client.KLINE_INTERVAL_1HOUR) < 50:
+                if self.get_ema(timeframe=Client.KLINE_INTERVAL_5MINUTE) or self.get_ema(
+                        timeframe=Client.KLINE_INTERVAL_30MINUTE) > self.df.iloc[-1].Price:
+                    print('30m-60m RSI is neutral, but ema is higher than current price, buy signal')
                     self.__buy(self.trade_data.quantity)
+            if self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) > (
+                    self.df.iloc[-1].Price + self.df.iloc[-1].Price * (1 / 4)):
+                print('RSI is high, but sma is much higher than current price, buy signal, but the trend is being '
+                      'checked too')
+                self.trendfollow_buy()
 
-                elif self.get_rsi(timeframe=Client.KLINE_INTERVAL_15MINUTE) < 30 or self.get_rsi(
-                        timeframe=Client.KLINE_INTERVAL_1HOUR) < 30:
-                    print('RSI is low, buy signal, but the trend is being checked too')
-                    self.trendfollow_buy()
+            if self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) > 85 or self.get_rsi(
+                    timeframe=Client.KLINE_INTERVAL_15MINUTE) > 85:
+                print('1m-15m RSI is very high, strong sell signal')
+                self.threshold_sell(profit_threshold=1, loss_threshold=-1)
+            if self.get_rsi(timeframe=Client.KLINE_INTERVAL_30MINUTE) > 65 or self.get_rsi(
+                    timeframe=Client.KLINE_INTERVAL_1HOUR) > 50:
+                if self.get_ema(timeframe=Client.KLINE_INTERVAL_30MINUTE) or self.get_ema(
+                        timeframe=Client.KLINE_INTERVAL_1HOUR) < self.df.iloc[-1].Price:
+                    print('30m-60m RSI is neutral, but ema is lower than current price, sell signal')
+                    self.threshold_sell(profit_threshold=5, loss_threshold=-3)
+            if self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) + (
+                    self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) * (1 / 4)) < self.df.iloc[-1].Price:
+                print('RSI is low, but sma is much lower than current price, sell signal')
+                self.threshold_sell(profit_threshold=3, loss_threshold=-2)
 
-                elif self.get_rsi(timeframe=Client.KLINE_INTERVAL_15MINUTE) < 50 or self.get_rsi(
-                        timeframe=Client.KLINE_INTERVAL_1HOUR) < 50:
-                    if self.get_ema(timeframe=Client.KLINE_INTERVAL_1MINUTE) or self.get_ema(
-                            timeframe=Client.KLINE_INTERVAL_1HOUR) > self.df.iloc[-1].Price:
-                        print('RSI is neutral, but ema is lower than current price, buy signal')
-                        self.__buy(self.trade_data.quantity)
-
-                elif self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) > (
-                        self.df.iloc[-1].Price + self.df.iloc[-1].Price * (1 / 4)):
-                    print('RSI is high, but sma is much lower than current price, buy signal, but the trend is being '
-                          'checked too')
-                    self.trendfollow_buy()
-
-            elif (self.entered or Sentiment.BEARISH) and (len(self.orders) < 3 or not all(order['side'] == 'SELL' for order in self.orders[-3:-1])):
-
-                self.threshold_sell(profit_threshold=0.1, loss_threshold=0.05)
-
-                if self.entered:
-                    if self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) > 85 or self.get_rsi(
-                            timeframe=Client.KLINE_INTERVAL_1HOUR) > 85:
-                        print('RSI is very high, strong sell signal')
-                        self.threshold_sell(profit_threshold=0.1, loss_threshold=0.1)
-
-                    elif self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) > 50 or self.get_rsi(
-                            timeframe=Client.KLINE_INTERVAL_1HOUR) > 50:
-                        if self.get_ema(timeframe=Client.KLINE_INTERVAL_1MINUTE) or self.get_ema(
-                                timeframe=Client.KLINE_INTERVAL_1HOUR) < self.df.iloc[-1].Price:
-                            print('RSI is neutral, but ema is higher than current price, sell signal')
-                            self.threshold_sell(profit_threshold=0.05, loss_threshold=0.05)
-
-                    elif self.get_sma(timeframe=Client.KLINE_INTERVAL_1MINUTE) + (
-                            self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) * (1 / 4)) < self.df.iloc[-1].Price:
-                        print('RSI is low, but sma is much higher than current price, sell signal')
-                        self.threshold_sell(profit_threshold=0.03, loss_threshold=0.02)
-
-            await asyncio.sleep(2)
+            if self.sentiment == Sentiment.BEARISH:
+                if any(lvl < self.df.iloc[-1].Price for lvl in self.fibo_lvls[-3:]):
+                    self.threshold_sell(profit_threshold=3, loss_threshold=-2)
+            else:
+                if all(lvl > self.df.iloc[-1].Price for lvl in self.fibo_lvls[-3:]):
+                    self.__buy(self.trade_data.quantity)
+        await asyncio.sleep(5)
 
     async def populate_df(self):
         print('Gathering Data for provided coin pair ' + self.trade_data.pair_str)
-        
+
         while not self.stopped:
             realtime_data = await self.api.get_data()
             self.df = self.df.append(realtime_data, ignore_index=True)
@@ -138,47 +136,51 @@ class Bot:
             await asyncio.sleep(5)
 
     def __buy(self, quantity):
-        if float(self.api.client.get_asset_balance(self.trade_data.pair[0])['free']) >= quantity:
-            order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type='MARKET',
-                                                 quantity=quantity)
-            self.orders.append(order)
-            print(str(datetime.datetime.now()) + '\t-\tBuy request created')
-            self.entered = True
-        else:
-            print('Not enough capital to execute trade')
+        if len(self.orders) < 3 or not all(order['side'] == 'BUY' for order in self.orders[-3:]):
+            if float(self.api.client.get_asset_balance(self.trade_data.pair[0])['free']) >= quantity:
+                order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type='MARKET',
+                                                     quantity=quantity)
+                self.orders.append(order)
+                print(str(datetime.datetime.now()) + '\t-\tBuy request created')
+            else:
+                print('Not enough capital to execute trade')
 
     def __sell(self, quantity):
-        order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type='MARKET',
-                                             quantity=quantity)
-        self.orders.append(order)
-        print(str(datetime.datetime.now()) + '\t-\tSell request created')
-        self.entered = False
+        if not all(order['side'] == 'SELL' for order in self.orders[-3:]):
+            order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type='MARKET',
+                                                 quantity=quantity)
+            self.orders.append(order)
+            print(str(datetime.datetime.now()) + '\t-\tSell request created')
+            return True
+        return False
 
     def trendfollow_buy(self):
-        """Function implementing the trendfollow buy strategy"""
-
-        lookback_period = self.df.iloc[-30:]
+        lookback_period = self.df.iloc[-10:]
         cumul_ret = (lookback_period.Price.pct_change() + 1).cumprod() - 1
-        print(cumul_ret[cumul_ret.last_valid_index()])
-        # If the price drops 0.2%, then we create a buy order
-        if cumul_ret[cumul_ret.last_valid_index()] < -0.002:
+        if abs(cumul_ret[cumul_ret.last_valid_index()]) > 0.003:
             self.__buy(self.trade_data.quantity)
         else:
             print(str(datetime.datetime.now()) + '\t-\tNo buy')
 
     def threshold_sell(self, profit_threshold, loss_threshold):
-        """Function implementing the trendfollow sell strategy"""
-
-        data = self.get_dataframe(Client.KLINE_INTERVAL_1MINUTE)
-        sincebuy = data.loc[data.index > pd.to_datetime(self.orders[-1]['transactTime'], unit='ms')]
-
-        if len(sincebuy) > 0:
-            sincebuy_ret = (sincebuy.Open.pct_change() + 1).cumprod() - 1
-            if abs(sincebuy_ret[-1]) > profit_threshold or abs(sincebuy_ret[-1]) > loss_threshold:
-                print('Selling with a return of: ' + str(sincebuy_ret[-1]))
-                self.__sell(self.trade_data.quantity)
-            else:
-                print(str(datetime.datetime.now()) + '\t-\tNo sell')
+        buys = []
+        for order in self.orders:
+            if order['side'] == 'BUY':
+                buys.append(order)
+        if len(buys) > 0:
+            buy_order = buys[-1]
+            pct_change_ret = (100 * (float(buy_order['fills'][0]['price']) - float(self.df.iloc[-1].Price))) / float(buy_order['fills'][0]['price'])
+            if len(self.orders) > 0:
+                if pct_change_ret > profit_threshold or pct_change_ret < loss_threshold:
+                    print('Creating sell order with a return of: ' + str(pct_change_ret) + '%')
+                    success = self.__sell(self.trade_data.quantity)
+                    if success:
+                        print('Sell successful')
+                        self.orders.remove(buy_order)
+                    else:
+                        print('Sell unsuccessful')
+                else:
+                    print(str(datetime.datetime.now()) + '\t-\tNo sell')
 
     def get_dataframe(self, timeframe=Client.KLINE_INTERVAL_1HOUR):
         timestamp = self.api.client._get_earliest_valid_timestamp(self.trade_data.pair_str,
@@ -200,7 +202,7 @@ class Bot:
     def get_ema(self, timeframe, period=20):
         df = self.get_dataframe(timeframe=timeframe)
         ema = btalib.ema(df, period=period)
-        print('ema ' + str(ema.df.ema[-1]))
+        print('ema: ' + str(timeframe) + ' ' + str(ema.df.ema[-1]))
         return ema.df.ema[-1]
 
     def get_rsi(self, timeframe, period=14):
@@ -208,7 +210,7 @@ class Bot:
         if period > len(df) - 1:
             period = len(df) - 1
         rsi = btalib.rsi(df, period=period)
-        print('rsi ' + str(rsi.df.rsi[-1]))
+        print('rsi: ' + str(timeframe) + ' ' + str(rsi.df.rsi[-1]))
         return rsi.df.rsi[-1]
 
     def __get_highest_and_lowest_swing(self):
@@ -244,7 +246,7 @@ class Bot:
                 levels.append(min_level + (max_level - min_level) * ratio)
         return levels
 
-    async def refresh_fibo_lvls(self):
+    async def refresh_sentiment_from_fibo(self):
         while not self.stopped:
             self.fibo_lvls = self.get_fibonacci_ratio_lvls()
             if self.fibo_lvls[0] > self.fibo_lvls[-1]:
