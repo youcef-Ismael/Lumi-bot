@@ -1,6 +1,6 @@
 from django.urls import path
 from bot_django_app.views import *
-
+from django.views.decorators.csrf import csrf_exempt
 
 """
 
@@ -65,14 +65,14 @@ Youcef
 """
 
 urlpatterns = [
-    path('', MainView.as_view()),
-    path('login/', LoginView.as_view()),
-    path('logout/', LogoutView.as_view()),
-    path('register/', RegisterView.as_view()),
-    path('start/', StartBot.as_view()),
-    path('stop/', StopBot.as_view()),
-    path('update/', UpdateBot.as_view()),
-    path('balances/', GetAssetsBalance.as_view()),
+    path('', csrf_exempt(MainView.as_view())),
+    path('login/', csrf_exempt(LoginView.as_view())),
+    path('logout/', csrf_exempt(LogoutView.as_view())),
+    path('register/', csrf_exempt(RegisterView.as_view())),
+    path('start/', csrf_exempt(StartBot.as_view())),
+    path('stop/', csrf_exempt(StopBot.as_view())),
+    path('update/', csrf_exempt(UpdateBot.as_view())),
+    path('balances/', csrf_exempt(GetAssetsBalance.as_view())),
 ]
 
 
