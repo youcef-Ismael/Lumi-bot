@@ -1,5 +1,21 @@
 //Bot.vue
 <template>
+<div>
+ <div class="layout-container">
+        <header class="page-header bg-primary">
+            <button class="back-btn" @click="$router.push({ path: '/layout/:layout' })">
+                <i class="fa fa-angle-left fa-2x"></i>
+            </button>
+            <span class="page-title">LumiBot</span>
+        </header>
+        <div class="page-container">
+            <transition name="fade" mode="out-in">
+                <keep-alive include="dashboard">
+                    <router-view/>
+                </keep-alive>
+            </transition>
+        </div>
+    </div>
 
   <div class="row justify-content-md-center">
     <div class="col-md-6">
@@ -30,6 +46,7 @@
         </div>
       </div>
     </div>
+  </div>
   </div>
 </template>
 
