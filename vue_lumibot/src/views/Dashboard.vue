@@ -23,7 +23,7 @@
         <nav class="navi">
 <ul>
 <li><a href="/layout/:layout">DASHBOARD</a></li>
-<li><a href="#">Trading Bot</a></li>
+<li><a href="/bot">TRADING BOT</a></li>
 <!-- <li><a href="#">PROFILE</a></li> -->
 <li><a href="/">LOGOUT</a></li>
 </ul>
