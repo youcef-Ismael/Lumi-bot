@@ -1,0 +1,61 @@
+{
+  "name": "vue-crypto-dashboard",
+  "version": "1.0.0",
+  "description": "Vue Cryptocurrency Dashboard",
+  "author": "Indra>",
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "test:unit": "vue-cli-service test:unit",
+    "lint": "vue-cli-service lint",
+    "docs": "vue-cli-service build --dest docs"
+  },
+  "dependencies": {
+    "@vue/composition-api": "^1.4.1",
+    "amcharts3": "github:amcharts/amcharts3",
+    "amstock3": "^3.21.15",
+    "axios": "^0.24.0",
+    "bootstrap": "^4.6.1",
+    "core-js": "^3.6.5",
+    "jquery": "^3.6.0",
+    "popper.js": "^1.16.1",
+    "register-service-worker": "^1.6.2",
+    "vue": "^2.6.11",
+    "vue-router": "^3.5.3",
+    "vue-select": "^2.6.4",
+    "vuex": "^3.6.2"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "^4.5.15",
+    "@vue/cli-plugin-eslint": "^4.5.13",
+    "@vue/cli-plugin-pwa": "^4.5.13",
+    "@vue/cli-plugin-unit-mocha": "^4.5.13",
+    "@vue/cli-service": "^4.5.13",
+    "@vue/test-utils": "^1.0.0-beta.30",
+    "babel-eslint": "^10.1.0",
+    "chai": "^4.2.0",
+    "eslint": "^6.8.0",
+    "eslint-plugin-vue": "^6.2.2",
+    "node-sass": "^4.13.0",
+    "sass-loader": "^7.3.1",
+    "vue-template-compiler": "^2.6.11"
+  },
+  "bugs": {
+    "url": "https://github.com/JayeshLab/vue-crypto-dashboard/issues"
+  },
+  "keywords": [
+    "crypto",
+    "cryptocurrency",
+    "dashboard",
+    "binance",
+    "amchart",
+    "realtime price",
+    "vue",
+    "vue.js"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JayeshLab/vue-crypto-dashboard.git"
+  }
+}
