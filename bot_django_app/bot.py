@@ -79,8 +79,8 @@ class Bot:
         while not self.stopped:
 
             if len(self.orders) > 0:
-                print('Attempting sell at given profit/loss threshold')
-                self.threshold_sell(profit_threshold=1, loss_threshold=-1)
+                print('Attempting to close position with a profit/loss threshold')
+                self.threshold_sell(profit_threshold=0.01, loss_threshold=-0.1)
 
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) < 15 or self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_15MINUTE) < 15:
@@ -105,21 +105,21 @@ class Bot:
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) > 85 or self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_15MINUTE) > 85:
                 print('1m-15m RSI is very high, strong sell signal')
-                self.threshold_sell(profit_threshold=1, loss_threshold=-1)
+                self.__sell(self.trade_data.quantity)
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_30MINUTE) > 65 or self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_1HOUR) > 50:
                 if self.get_ema(timeframe=Client.KLINE_INTERVAL_30MINUTE) or self.get_ema(
                         timeframe=Client.KLINE_INTERVAL_1HOUR) < self.df.iloc[-1].Price:
                     print('30m-60m RSI is neutral, but ema is lower than current price, sell signal')
-                    self.threshold_sell(profit_threshold=5, loss_threshold=-3)
+                    self.__sell(self.trade_data.quantity)
             if self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) + (
                     self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) * (1 / 4)) < self.df.iloc[-1].Price:
                 print('RSI is low, but sma is much lower than current price, sell signal')
-                self.threshold_sell(profit_threshold=3, loss_threshold=-2)
+                self.__sell(self.trade_data.quantity)
 
             if self.sentiment == Sentiment.BEARISH:
                 if any(lvl < self.df.iloc[-1].Price for lvl in self.fibo_lvls[-3:]):
-                    self.threshold_sell(profit_threshold=3, loss_threshold=-2)
+                    self.__sell(self.trade_data.quantity)
             else:
                 if all(lvl > self.df.iloc[-1].Price for lvl in self.fibo_lvls[-3:]):
                     self.__buy(self.trade_data.quantity)
@@ -133,7 +133,7 @@ class Bot:
             self.df = self.df.append(realtime_data, ignore_index=True)
             if len(self.df) > 10000:
                 self.df = self.df.iloc[len(self.df) - 10000:]
-            await asyncio.sleep(5)
+            await asyncio.sleep(3)
 
     def __buy(self, quantity):
         if len(self.orders) < 3 or not all(order['side'] == 'BUY' for order in self.orders[-3:]):
@@ -146,13 +146,21 @@ class Bot:
                 print('Not enough capital to execute trade')
 
     def __sell(self, quantity):
-        if not all(order['side'] == 'SELL' for order in self.orders[-3:]):
-            order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type='MARKET',
-                                                 quantity=quantity)
-            self.orders.append(order)
-            print(str(datetime.datetime.now()) + '\t-\tSell request created')
-            return True
+        if len(self.orders) < 3 or not all(order['side'] == 'SELL' for order in self.orders[-3:]):
+            if float(self.api.client.get_asset_balance(self.trade_data.pair[0])['free']) >= quantity:
+                order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type='MARKET',
+                                                     quantity=quantity)
+                self.orders.append(order)
+                print(str(datetime.datetime.now()) + '\t-\tSell request created')
+                return True
+            else:
+                print('Not enough capital to execute trade')
         return False
+
+    def __close_position(self, quantity):
+        self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type='MARKET',
+                                             quantity=quantity)
+        print(str(datetime.datetime.now()) + '\t-\tSell request created')
 
     def trendfollow_buy(self):
         lookback_period = self.df.iloc[-10:]
@@ -163,24 +171,26 @@ class Bot:
             print(str(datetime.datetime.now()) + '\t-\tNo buy')
 
     def threshold_sell(self, profit_threshold, loss_threshold):
-        buys = []
-        for order in self.orders:
+        if len(self.orders) > 0:
+            order = self.orders[-1]
+            pct_change_ret = (100 * (float(self.df.iloc[-1].Price) - float(order['fills'][0]['price']))) / float(
+                order['fills'][0]['price'])
             if order['side'] == 'BUY':
-                buys.append(order)
-        if len(buys) > 0:
-            buy_order = buys[-1]
-            pct_change_ret = (100 * (float(buy_order['fills'][0]['price']) - float(self.df.iloc[-1].Price))) / float(buy_order['fills'][0]['price'])
-            if len(self.orders) > 0:
                 if pct_change_ret > profit_threshold or pct_change_ret < loss_threshold:
-                    print('Creating sell order with a return of: ' + str(pct_change_ret) + '%')
+                    print('Closing buy position with a return of: ' + str(pct_change_ret) + '%')
                     success = self.__sell(self.trade_data.quantity)
                     if success:
                         print('Sell successful')
-                        self.orders.remove(buy_order)
+                        self.orders.remove(order)
                     else:
                         print('Sell unsuccessful')
                 else:
                     print(str(datetime.datetime.now()) + '\t-\tNo sell')
+            else:
+                if -pct_change_ret > profit_threshold or -pct_change_ret < loss_threshold:
+                    print('Closing sell position with a return of: ' + str(-pct_change_ret) + '%')
+                    self.__close_position(self.trade_data.quantity)
+                    self.orders.remove(order)
 
     def get_dataframe(self, timeframe=Client.KLINE_INTERVAL_1HOUR):
         timestamp = self.api.client._get_earliest_valid_timestamp(self.trade_data.pair_str,
