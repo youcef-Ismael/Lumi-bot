@@ -8,17 +8,14 @@ from binance.client import Client
 
 from .bot import TradeData, Bot, TradeType, OrderType
 
-# create a new event loop
-
-
 def create_new_loop():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return asyncio.get_event_loop()
 
 
-def start():
-    model.bot.start()
+# def start():
+#     model.bot.start()
 
 
 @dataclass
