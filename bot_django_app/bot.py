@@ -1,5 +1,9 @@
 import asyncio
+from asyncio.tasks import sleep
 import datetime
+import threading
+from multiprocessing import Process
+import multiprocessing as mp
 from dataclasses import dataclass
 from enum import Enum
 
@@ -64,57 +68,52 @@ class Bot:
         except KeyboardInterrupt:
             pass
         finally:
-            print("Closing Loop")
+            print(f'{datetime.datetime.now()} \t Closing Loop')
             self.stop()
 
     async def start_trade(self):
-        print('\nWaiting 60 sec to gather data - ', datetime.datetime.now())
-        print()
         await asyncio.sleep(60)
-        print('Gathered data until now:')
-        print(self.df)
-        print('\nStarting the trading - ', datetime.datetime.now())
-        print()
+        print(f'{datetime.datetime.now()} \t Starting the trading\n')
 
         while not self.stopped:
 
             if len(self.orders) > 0:
-                print('Attempting to close position with a profit/loss threshold')
+                print(f'{datetime.datetime.now()} \t Attempting to close position with a profit/loss threshold')
                 self.threshold_sell(profit_threshold=0.01, loss_threshold=-0.1)
 
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) < 15 or self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_15MINUTE) < 15:
-                print('1m-15m RSI is very low, strong buy signal')
+                print(f'{datetime.datetime.now()} \t 1m-15m RSI is very low, strong buy signal')
                 self.__buy(self.trade_data.quantity)
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_30MINUTE) < 25 or self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_1HOUR) < 25:
-                print('30m-60m RSI is low, buy signal, but the trend is being checked too')
+                print(f'{datetime.datetime.now()} \t 30m-60m RSI is low, buy signal, but the trend is being checked too')
                 self.trendfollow_buy()
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_30MINUTE) < 35 and self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_1HOUR) < 50:
                 if self.get_ema(timeframe=Client.KLINE_INTERVAL_5MINUTE) or self.get_ema(
                         timeframe=Client.KLINE_INTERVAL_30MINUTE) > self.df.iloc[-1].Price:
-                    print('30m-60m RSI is neutral, but ema is higher than current price, buy signal')
+                    print(f'{datetime.datetime.now()} \t 30m-60m RSI is neutral, but ema is higher than current price, buy signal')
                     self.__buy(self.trade_data.quantity)
             if self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) > (
                     self.df.iloc[-1].Price + self.df.iloc[-1].Price * (1 / 4)):
-                print('RSI is high, but sma is much higher than current price, buy signal, but the trend is being '
+                print(f'{datetime.datetime.now()} \t RSI is high, but sma is much higher than current price, buy signal, but the trend is being '
                       'checked too')
                 self.trendfollow_buy()
 
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_1MINUTE) > 85 or self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_15MINUTE) > 85:
-                print('1m-15m RSI is very high, strong sell signal')
+                print(f'{datetime.datetime.now()} \t 1m-15m RSI is very high, strong sell signal')
                 self.__sell(self.trade_data.quantity)
             if self.get_rsi(timeframe=Client.KLINE_INTERVAL_30MINUTE) > 65 or self.get_rsi(
                     timeframe=Client.KLINE_INTERVAL_1HOUR) > 50:
                 if self.get_ema(timeframe=Client.KLINE_INTERVAL_30MINUTE) or self.get_ema(
                         timeframe=Client.KLINE_INTERVAL_1HOUR) < self.df.iloc[-1].Price:
-                    print('30m-60m RSI is neutral, but ema is lower than current price, sell signal')
+                    print(f'{datetime.datetime.now()} \t 30m-60m RSI is neutral, but ema is lower than current price, sell signal')
                     self.__sell(self.trade_data.quantity)
             if self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) + (
                     self.get_sma(timeframe=Client.KLINE_INTERVAL_1HOUR) * (1 / 4)) < self.df.iloc[-1].Price:
-                print('RSI is low, but sma is much lower than current price, sell signal')
+                print(f'{datetime.datetime.now()} \t RSI is low, but sma is much lower than current price, sell signal')
                 self.__sell(self.trade_data.quantity)
 
             if self.sentiment == Sentiment.BEARISH:
@@ -123,17 +122,18 @@ class Bot:
             else:
                 if all(lvl > self.df.iloc[-1].Price for lvl in self.fibo_lvls[-3:]):
                     self.__buy(self.trade_data.quantity)
-        await asyncio.sleep(5)
+            await asyncio.sleep(5)
 
     async def populate_df(self):
-        print('Gathering Data for provided coin pair ' + self.trade_data.pair_str)
+        print(f'\n\n{datetime.datetime.now()} \t Gathering Data for provided coin pair ' + self.trade_data.pair_str)
 
         while not self.stopped:
+            await asyncio.sleep(3)
             realtime_data = await self.api.get_data()
+            print(f'\n{realtime_data}\n')
             self.df = self.df.append(realtime_data, ignore_index=True)
             if len(self.df) > 10000:
                 self.df = self.df.iloc[len(self.df) - 10000:]
-            await asyncio.sleep(3)
 
     def __buy(self, quantity):
         if len(self.orders) < 3 or not all(order['side'] == 'BUY' for order in self.orders[-3:]):
@@ -141,9 +141,9 @@ class Bot:
                 order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='BUY', type='MARKET',
                                                      quantity=quantity)
                 self.orders.append(order)
-                print(str(datetime.datetime.now()) + '\t-\tBuy request created')
+                print(f'{datetime.datetime.now()} \t Buy request created')
             else:
-                print('Not enough capital to execute trade')
+                print(f'{datetime.datetime.now()} \t Not enough capital to execute trade')
 
     def __sell(self, quantity):
         if len(self.orders) < 3 or not all(order['side'] == 'SELL' for order in self.orders[-3:]):
@@ -151,16 +151,16 @@ class Bot:
                 order = self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type='MARKET',
                                                      quantity=quantity)
                 self.orders.append(order)
-                print(str(datetime.datetime.now()) + '\t-\tSell request created')
+                print(f'{datetime.datetime.now()} \t Sell request created')
                 return True
             else:
-                print('Not enough capital to execute trade')
+                print(f'{datetime.datetime.now()} \t Not enough capital to execute trade')
         return False
 
     def __close_position(self, quantity):
         self.api.client.create_order(symbol=self.trade_data.pair_str, side='SELL', type='MARKET',
                                              quantity=quantity)
-        print(str(datetime.datetime.now()) + '\t-\tSell request created')
+        print(f'{datetime.datetime.now()} \t Sell request created')
 
     def trendfollow_buy(self):
         lookback_period = self.df.iloc[-10:]
@@ -168,7 +168,7 @@ class Bot:
         if abs(cumul_ret[cumul_ret.last_valid_index()]) > 0.003:
             self.__buy(self.trade_data.quantity)
         else:
-            print(str(datetime.datetime.now()) + '\t-\tNo buy')
+            print(f'{datetime.datetime.now()} \t No trendfollow buy')
 
     def threshold_sell(self, profit_threshold, loss_threshold):
         if len(self.orders) > 0:
@@ -177,18 +177,18 @@ class Bot:
                 order['fills'][0]['price'])
             if order['side'] == 'BUY':
                 if pct_change_ret > profit_threshold or pct_change_ret < loss_threshold:
-                    print('Closing buy position with a return of: ' + str(pct_change_ret) + '%')
+                    print(f'{datetime.datetime.now()} \t Closing buy position with a return of: ' + str(pct_change_ret) + '%')
                     success = self.__sell(self.trade_data.quantity)
                     if success:
-                        print('Sell successful')
+                        print(f'{datetime.datetime.now()} \t Sell successful')
                         self.orders.remove(order)
                     else:
-                        print('Sell unsuccessful')
+                        print(f'{datetime.datetime.now()} \t Sell unsuccessful')
                 else:
-                    print(str(datetime.datetime.now()) + '\t-\tNo sell')
+                    print(f'{datetime.datetime.now()} \t No sell')
             else:
                 if -pct_change_ret > profit_threshold or -pct_change_ret < loss_threshold:
-                    print('Closing sell position with a return of: ' + str(-pct_change_ret) + '%')
+                    print(f'{datetime.datetime.now()} \t Closing sell position with a return of: ' + str(-pct_change_ret) + '%')
                     self.__close_position(self.trade_data.quantity)
                     self.orders.remove(order)
 
@@ -206,13 +206,13 @@ class Bot:
 
     def get_sma(self, timeframe, period=20):
         df = self.get_dataframe(timeframe=timeframe)
-        print('sma ' + str(df.Close.tail(period).mean()))
+        print(f'{datetime.datetime.now()} \t sma ' + str(df.Close.tail(period).mean()))
         return df.Close.tail(period).mean()
 
     def get_ema(self, timeframe, period=20):
         df = self.get_dataframe(timeframe=timeframe)
         ema = btalib.ema(df, period=period)
-        print('ema: ' + str(timeframe) + ' ' + str(ema.df.ema[-1]))
+        print(f'{datetime.datetime.now()} \t ema: ' + str(timeframe) + ' ' + str(ema.df.ema[-1]))
         return ema.df.ema[-1]
 
     def get_rsi(self, timeframe, period=14):
@@ -220,7 +220,7 @@ class Bot:
         if period > len(df) - 1:
             period = len(df) - 1
         rsi = btalib.rsi(df, period=period)
-        print('rsi: ' + str(timeframe) + ' ' + str(rsi.df.rsi[-1]))
+        print(f'{datetime.datetime.now()} \t rsi: ' + str(timeframe) + ' ' + str(rsi.df.rsi[-1]))
         return rsi.df.rsi[-1]
 
     def __get_highest_and_lowest_swing(self):
