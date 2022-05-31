@@ -1,7 +1,7 @@
 bta_lib==1.0.0
 Django==3.2.13
 djangorestframework==3.12.4
-numpy==1.17.4
+numpy==1.21.0
 pandas==1.3.4
 python_binance==1.0.15
 django-cors-headers
